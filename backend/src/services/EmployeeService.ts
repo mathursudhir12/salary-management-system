@@ -70,3 +70,43 @@ export async function getAllEmployees({
     totalPages: Math.ceil(count / limit),
   };
 }
+
+// ── getEmployeeById ───────────────────────────────────────────────────────────
+// Returns a single employee by primary key, or null if not found.
+// Explicit attribute list — no SELECT *.
+
+export async function getEmployeeById(id: string): Promise<Employee | null> {
+  return Employee.findByPk(id, {
+    attributes: [
+      'id', 'fullName', 'jobTitle', 'country', 'department',
+      'salary', 'currency', 'employmentType', 'joinDate',
+      'createdAt', 'updatedAt',
+    ],
+  });
+}
+
+// ── updateEmployee ────────────────────────────────────────────────────────────
+// Finds by PK, applies partial update, returns updated instance.
+// Returns null if the employee does not exist.
+
+export async function updateEmployee(
+  id:   string,
+  data: Partial<CreateEmployeeDto>,
+): Promise<Employee | null> {
+  const employee = await Employee.findByPk(id);
+  if (!employee) return null;
+
+  // Double-cast: same reason as createEmployee — index-signature mismatch.
+  return employee.update(data as unknown as Parameters<typeof employee.update>[0]);
+}
+
+// ── deleteEmployee ────────────────────────────────────────────────────────────
+// Destroys the row. Returns true if deleted, false if not found.
+
+export async function deleteEmployee(id: string): Promise<boolean> {
+  const employee = await Employee.findByPk(id);
+  if (!employee) return false;
+
+  await employee.destroy();
+  return true;
+}
