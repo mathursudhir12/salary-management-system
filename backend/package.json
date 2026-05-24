@@ -10,7 +10,8 @@
     "test:watch": "cross-env NODE_ENV=test jest --watch --runInBand",
     "db:migrate": "ts-node node_modules/.bin/sequelize db:migrate",
     "db:migrate:undo": "ts-node node_modules/.bin/sequelize db:migrate:undo",
-    "db:migrate:undo:all": "ts-node node_modules/.bin/sequelize db:migrate:undo:all"
+    "db:migrate:undo:all": "ts-node node_modules/.bin/sequelize db:migrate:undo:all",
+    "seed": "cross-env NODE_ENV=development ts-node --transpile-only ../seed/seed.ts"
   },
   "keywords": [],
   "author": "",
