@@ -7,7 +7,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "NODE_ENV=test jest --runInBand --forceExit",
-    "test:watch": "NODE_ENV=test jest --watch --runInBand"
+    "test:watch": "NODE_ENV=test jest --watch --runInBand",
+    "db:migrate": "ts-node node_modules/.bin/sequelize db:migrate",
+    "db:migrate:undo": "ts-node node_modules/.bin/sequelize db:migrate:undo",
+    "db:migrate:undo:all": "ts-node node_modules/.bin/sequelize db:migrate:undo:all"
   },
   "keywords": [],
   "author": "",

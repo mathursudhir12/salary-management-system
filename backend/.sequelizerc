@@ -1,0 +1,12 @@
+// Sequelize CLI configuration for TypeScript projects.
+// Run migrations with ts-node so the CLI can read our .ts migration files:
+//   npx ts-node node_modules/.bin/sequelize db:migrate
+//   npx ts-node node_modules/.bin/sequelize db:migrate:undo
+const path = require('path');
+
+module.exports = {
+  config:           path.resolve('src/config', 'sequelize.config.js'),
+  'models-path':    path.resolve('src', 'models'),
+  'migrations-path':path.resolve('src', 'migrations'),
+  'seeders-path':   path.resolve('src', 'seeders'),
+};
