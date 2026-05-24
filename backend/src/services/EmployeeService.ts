@@ -1,0 +1,72 @@
+/**
+ * TDD — GREEN phase
+ *
+ * Minimum implementation to pass all tests in employee.service.test.ts.
+ * Validation is intentionally delegated to the Employee model's @Column validate
+ * options — no duplicate logic here.
+ */
+
+import 'reflect-metadata';
+import { Employee, EmploymentType } from '../models';
+
+// ── Input / output types ──────────────────────────────────────────────────────
+
+export interface CreateEmployeeDto {
+  fullName: string;
+  jobTitle: string;
+  country: string;
+  department: string;
+  salary: number;
+  currency?: string;
+  employmentType: EmploymentType;
+  joinDate: string;
+}
+
+export interface PaginatedResult {
+  data: Employee[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+// ── createEmployee ────────────────────────────────────────────────────────────
+// Delegates validation to the model layer (notEmpty, min salary validators).
+// Throws SequelizeValidationError on invalid input — callers handle the error.
+
+export async function createEmployee(data: CreateEmployeeDto): Promise<Employee> {
+  // Double-cast: CreateEmployeeDto is structurally compatible with Sequelize's
+  // creation attributes, but the index-signature mismatch requires unknown first.
+  return Employee.create(data as unknown as Parameters<typeof Employee.create>[0]);
+}
+
+// ── getAllEmployees ───────────────────────────────────────────────────────────
+// Never returns all rows — always paginated via findAndCountAll.
+// offset = (page - 1) * limit follows standard 1-based page numbering.
+
+export async function getAllEmployees({
+  page,
+  limit,
+}: {
+  page: number;
+  limit: number;
+}): Promise<PaginatedResult> {
+  const offset = (page - 1) * limit;
+
+  const { rows, count } = await Employee.findAndCountAll({
+    attributes: [
+      'id', 'fullName', 'jobTitle', 'country', 'department',
+      'salary', 'currency', 'employmentType', 'joinDate',
+      'createdAt', 'updatedAt',
+    ],
+    limit,
+    offset,
+    order: [['createdAt', 'ASC']],
+  });
+
+  return {
+    data: rows,
+    total: count,
+    page,
+    totalPages: Math.ceil(count / limit),
+  };
+}

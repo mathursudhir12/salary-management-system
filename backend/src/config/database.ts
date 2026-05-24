@@ -1,13 +1,16 @@
 import 'reflect-metadata';
 import { Sequelize } from 'sequelize-typescript';
 import dotenv from 'dotenv';
-import path from 'path';
+
+import { Employee } from '../models/Employee';
 
 dotenv.config();
 
 const env = process.env.NODE_ENV ?? 'development';
 
-const modelsPath = path.join(__dirname, '..', 'models');
+// Explicit model list — avoids sequelize-typescript's path scanner choking on
+// index.ts re-exports (scanner expects filename === exported class name).
+const models = [Employee];
 
 let sequelize: Sequelize;
 
@@ -17,7 +20,7 @@ if (env === 'test') {
     dialect: 'sqlite',
     storage: ':memory:',
     logging: false,
-    models: [modelsPath],
+    models,
   });
 } else if (process.env.DATABASE_URL) {
   // Production (Render) — use connection URL with SSL
@@ -27,7 +30,7 @@ if (env === 'test') {
     dialectOptions: {
       ssl: { require: true, rejectUnauthorized: false },
     },
-    models: [modelsPath],
+    models,
   });
 } else {
   // Local development — individual env vars
@@ -39,7 +42,7 @@ if (env === 'test') {
     username: process.env.DB_USER ?? 'postgres',
     password: process.env.DB_PASSWORD ?? '',
     logging: console.log,
-    models: [modelsPath],
+    models,
   });
 }
 

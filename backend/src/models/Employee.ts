@@ -10,7 +10,7 @@ import {
   CreatedAt,
   UpdatedAt,
 } from 'sequelize-typescript';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto'; // built-in Node.js — no ESM/CJS compat issues
 
 // ── Employment type enum ──────────────────────────────────────────────────────
 export enum EmploymentType {
@@ -27,7 +27,7 @@ export enum EmploymentType {
 export class Employee extends Model {
   // id — UUID primary key, auto-generated on the JS side (SQLite + Postgres safe)
   @PrimaryKey
-  @Default(uuidv4)
+  @Default(randomUUID)
   @Column(DataType.UUID)
   declare id: string;
 
