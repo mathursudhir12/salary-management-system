@@ -7,6 +7,8 @@
  */
 
 import 'reflect-metadata';
+import { Op } from 'sequelize';
+import sequelize from '../config/database';
 import { Employee, EmploymentType } from '../models';
 
 // ── Input / output types ──────────────────────────────────────────────────────
@@ -46,11 +48,27 @@ export async function createEmployee(data: CreateEmployeeDto): Promise<Employee>
 export async function getAllEmployees({
   page,
   limit,
+  search,
 }: {
-  page: number;
-  limit: number;
+  page:    number;
+  limit:   number;
+  search?: string;
 }): Promise<PaginatedResult> {
-  const offset = (page - 1) * limit;
+  const offset  = (page - 1) * limit;
+  const trimmed = search?.trim();
+
+  // Use ILIKE on PostgreSQL (case-insensitive); SQLite LIKE is ASCII-case-insensitive
+  // by default, so Op.like is sufficient there.
+  const likeOp = sequelize.getDialect() === 'postgres' ? Op.iLike : Op.like;
+
+  const where = trimmed
+    ? {
+        [Op.or]: [
+          { fullName: { [likeOp]: `%${trimmed}%` } },
+          { country:  { [likeOp]: `%${trimmed}%` } },
+        ],
+      }
+    : {};
 
   const { rows, count } = await Employee.findAndCountAll({
     attributes: [
@@ -58,6 +76,7 @@ export async function getAllEmployees({
       'salary', 'currency', 'employmentType', 'joinDate',
       'createdAt', 'updatedAt',
     ],
+    where,
     limit,
     offset,
     order: [['createdAt', 'ASC']],

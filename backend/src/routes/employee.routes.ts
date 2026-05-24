@@ -141,7 +141,8 @@ router.get(
         Math.max(1, parseInt(String(req.query.limit ?? '20'), 10) || 20),
       );
 
-      const result = await getAllEmployees({ page, limit });
+      const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+      const result = await getAllEmployees({ page, limit, search });
       res.json(result);
     } catch (err) {
       next(err);
