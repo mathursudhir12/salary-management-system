@@ -165,6 +165,19 @@ After each major phase, update:
 
 ---
 
+## React Performance Rules
+
+1. **Always use TanStack Query v5 for ALL server state** — no local `useState` + `useEffect` fetch patterns
+2. **Never fetch data directly in a component** — always use a custom hook from `src/hooks/`
+3. **Wrap all list and table components with `React.memo`** — prevents re-renders when parent state changes but props are unchanged
+4. **Use `useCallback` for all handlers passed as props** — keeps child `memo` comparisons stable
+5. **Use `useMemo` for all computed or derived values** — e.g. filtered lists, formatted totals, derived booleans from query data
+6. **All routes must be lazy-loaded with `React.lazy` and `<Suspense>`** — each page becomes a separate JS chunk; Vite splits the bundle automatically
+7. **Search inputs must always use the `useDebounce` hook with a 300 ms delay** — prevents an API call on every keystroke
+8. **Global `QueryClient` config: `staleTime` 5 min, `gcTime` 10 min** — HR data doesn't change second-to-second; avoids redundant refetches while keeping memory bounded
+
+---
+
 ## Definition of Done
 - [ ] All CRUD operations work via UI
 - [ ] Insights dashboard shows all required metrics
