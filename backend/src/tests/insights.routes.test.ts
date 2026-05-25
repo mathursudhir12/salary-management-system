@@ -118,6 +118,24 @@ describe('Insights Routes', () => {
   // ── GET /api/insights?country=India ───────────────────────────────────────
   describe('GET /api/insights?country=India', () => {
 
+    it('includes avgSalaryByTitle — array of {jobTitle, avgSalary} for India', async () => {
+      const res = await request(app).get('/api/insights?country=India');
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data.avgSalaryByTitle)).toBe(true);
+
+      const se = (res.body.data.avgSalaryByTitle as { jobTitle: string; avgSalary: number }[])
+        .find(r => r.jobTitle === 'Software Engineer');
+
+      expect(se).toBeDefined();
+      expect(Number(se!.avgSalary)).toBe(75_000);  // Alice(60k)+Bob(90k) / 2
+    });
+
+    it('does NOT include avgSalaryByTitle when country param is absent', async () => {
+      const res = await request(app).get('/api/insights');
+      expect(res.body.data.avgSalaryByTitle).toBeUndefined();
+    });
+
     it('includes countryInsights with correct min/max/avg/headcount', async () => {
       const res = await request(app).get('/api/insights?country=India');
 

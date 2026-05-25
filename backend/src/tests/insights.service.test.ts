@@ -33,6 +33,7 @@ import { up } from '../migrations/20260524000001-create-employees';
 import {
   getInsightsByCountry,
   getAvgSalaryByTitleAndCountry,
+  getAvgSalaryByTitleForCountry,
   getHeadcountByCountry,
   getTopPaidJobTitles,
   getSalaryDistributionByDepartment,
@@ -127,7 +128,38 @@ describe('InsightsService', () => {
     });
   });
 
-  // ── 5. getSalaryDistributionByDepartment ──────────────────────────────────
+  // ── 5. getAvgSalaryByTitleForCountry ─────────────────────────────────────
+  // India has: Alice(SE,60k) + Bob(SE,90k) → SE avg=75k; Charlie(PM,75k) → PM avg=75k
+  describe('getAvgSalaryByTitleForCountry()', () => {
+    it('returns avg salary for each job title present in the given country', async () => {
+      const result = await getAvgSalaryByTitleForCountry('India');
+
+      expect(result.length).toBe(2);          // SE and PM
+
+      const se = result.find((r: { jobTitle: string }) => r.jobTitle === 'Software Engineer');
+      const pm = result.find((r: { jobTitle: string }) => r.jobTitle === 'Product Manager');
+
+      expect(se).toBeDefined();
+      expect(Number(se!.avgSalary)).toBe(75_000);  // (60k+90k)/2
+      expect(pm).toBeDefined();
+      expect(Number(pm!.avgSalary)).toBe(75_000);  // 75k
+    });
+
+    it('returns results in descending order of avgSalary', async () => {
+      const result = await getAvgSalaryByTitleForCountry('India');
+      for (let i = 1; i < result.length; i++) {
+        expect(Number(result[i].avgSalary))
+          .toBeLessThanOrEqual(Number(result[i - 1].avgSalary));
+      }
+    });
+
+    it('returns an empty array for a country with no employees', async () => {
+      const result = await getAvgSalaryByTitleForCountry('NoSuchCountry');
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ── 6. getSalaryDistributionByDepartment ──────────────────────────────────
   describe('getSalaryDistributionByDepartment()', () => {
     it('returns average salary per department', async () => {
       const result = await getSalaryDistributionByDepartment();
