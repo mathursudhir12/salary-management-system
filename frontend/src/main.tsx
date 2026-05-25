@@ -8,7 +8,8 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 min — HR data doesn't change second-to-second
+      staleTime: 1000 * 60 *  5, // 5 min  — serve cached data without refetch
+      gcTime:    1000 * 60 * 10, // 10 min — keep unused cache in memory before GC
       retry: 1,
     },
   },
