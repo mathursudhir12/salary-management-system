@@ -13,6 +13,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import {
   getInsightsByCountry,
   getAvgSalaryByTitleAndCountry,
+  getAvgSalaryByTitleForCountry,
   getHeadcountByCountry,
   getTopPaidJobTitles,
   getSalaryDistributionByDepartment,
@@ -44,7 +45,12 @@ router.get(
 
       // ── Conditional: country-specific insights ──────────────────────────────
       if (country) {
-        data.countryInsights = await getInsightsByCountry(country);
+        const [countryInsights, avgSalaryByTitle] = await Promise.all([
+          getInsightsByCountry(country),
+          getAvgSalaryByTitleForCountry(country),
+        ]);
+        data.countryInsights  = countryInsights;
+        data.avgSalaryByTitle = avgSalaryByTitle;
       }
 
       // ── Conditional: avg salary for job title in that country ───────────────

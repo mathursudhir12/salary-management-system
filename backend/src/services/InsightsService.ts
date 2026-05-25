@@ -120,7 +120,31 @@ export async function getTopPaidJobTitles(): Promise<JobTitleAvgSalary[]> {
   }));
 }
 
-// ── 5. getSalaryDistributionByDepartment ──────────────────────────────────────
+// ── 5. getAvgSalaryByTitleForCountry ─────────────────────────────────────────
+// All job titles in a country with their AVG(salary), ordered descending.
+// Used by the Insights page to render the per-country breakdown table.
+
+export async function getAvgSalaryByTitleForCountry(
+  country: string,
+): Promise<JobTitleAvgSalary[]> {
+  const rows = await Employee.findAll({
+    attributes: [
+      'jobTitle',
+      [fn('AVG', col('salary')), 'avgSalary'],
+    ],
+    where: { country },
+    group: ['jobTitle'],
+    order: [[fn('AVG', col('salary')), 'DESC']],
+    raw:   true,
+  }) as unknown as { jobTitle: string; avgSalary: string }[];
+
+  return rows.map(r => ({
+    jobTitle:  r.jobTitle,
+    avgSalary: Number(r.avgSalary),
+  }));
+}
+
+// ── 6. getSalaryDistributionByDepartment ──────────────────────────────────────
 // GROUP BY department, AVG(salary) DESC.
 
 export async function getSalaryDistributionByDepartment(): Promise<DepartmentAvgSalary[]> {
