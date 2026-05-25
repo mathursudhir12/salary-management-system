@@ -10,7 +10,7 @@
  *    still find it because RTL searches the whole document.
  */
 import { render, screen, fireEvent } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import userEvent, { PointerEventsCheckLevel } from '@testing-library/user-event'
 import EmployeeFormDialog from '@/components/EmployeeFormDialog'
 import type { Employee } from '@/types/employee'
 
@@ -49,12 +49,18 @@ const mockEmployee: Employee = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Open the dialog by clicking the trigger button labelled `triggerLabel`. */
+/**
+ * Open the dialog by clicking the trigger button labelled `triggerLabel`.
+ *
+ * PointerEventsCheckLevel.Never — jsdom doesn't apply Tailwind stylesheets so
+ * Radix Dialog's pointer-events:none on <body> would falsely block interactions
+ * with buttons inside the dialog portal.
+ */
 async function openDialog(
   ui: React.ReactElement,
   triggerLabel = 'Open',
 ) {
-  const user = userEvent.setup()
+  const user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never })
   render(ui)
   await user.click(screen.getByRole('button', { name: triggerLabel }))
   return user

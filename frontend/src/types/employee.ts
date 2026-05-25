@@ -36,3 +36,15 @@ export interface EmployeeQueryParams {
   limit:   number
   search?: string
 }
+
+/** Fields sent to POST /api/employees or PUT /api/employees/:id */
+export interface EmployeeFormData {
+  fullName:       string
+  jobTitle:       string
+  country:        string
+  department:     string
+  salary:         number
+  currency:       string
+  employmentType: EmploymentType
+  joinDate:       string
+}

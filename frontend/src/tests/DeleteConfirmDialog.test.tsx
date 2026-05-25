@@ -9,8 +9,8 @@
  *  - Verify the delete mutation is called on confirm.
  *  - Verify the dialog closes on cancel.
  */
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, within, fireEvent } from '@testing-library/react'
+import userEvent, { PointerEventsCheckLevel } from '@testing-library/user-event'
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog'
 import type { Employee } from '@/types/employee'
 
@@ -43,7 +43,10 @@ const mockEmployee: Employee = {
 // ── Helper ────────────────────────────────────────────────────────────────────
 
 async function openDialog() {
-  const user = userEvent.setup()
+  // PointerEventsCheckLevel.Never — jsdom doesn't apply stylesheets so Radix
+  // Dialog's pointer-events:none on <body> would falsely block interactions
+  // with elements inside the dialog portal.
+  const user = userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never })
   render(
     <DeleteConfirmDialog employee={mockEmployee}>
       <button>Delete</button>
@@ -83,11 +86,12 @@ describe('DeleteConfirmDialog', () => {
   })
 
   it('calls deleteEmployee.mutate with the employee id when Delete is confirmed', async () => {
-    const user = await openDialog()
-    // The dialog has two "Delete" buttons: trigger (already clicked) + confirm
-    // The confirm button is *inside* the dialog
-    const [, confirmBtn] = screen.getAllByRole('button', { name: /delete/i })
-    await user.click(confirmBtn)
+    await openDialog()
+    // When the dialog is open Radix sets aria-hidden="true" on background content,
+    // so the trigger button is excluded from ARIA queries. Scope to the dialog to
+    // reliably get the confirm button, then use fireEvent (no pointer simulation).
+    const confirmBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /delete/i })
+    fireEvent.click(confirmBtn)
     expect(mockDeleteMutate).toHaveBeenCalledWith('emp-42', expect.any(Object))
   })
 
@@ -102,9 +106,9 @@ describe('DeleteConfirmDialog', () => {
       (_id: unknown, opts: { onSuccess?: () => void }) => opts?.onSuccess?.(),
     )
 
-    const user = await openDialog()
-    const [, confirmBtn] = screen.getAllByRole('button', { name: /delete/i })
-    await user.click(confirmBtn)
+    await openDialog()
+    const confirmBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /delete/i })
+    fireEvent.click(confirmBtn)
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
