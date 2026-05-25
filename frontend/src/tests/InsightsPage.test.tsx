@@ -144,10 +144,12 @@ describe('InsightsPage', () => {
 
     await user.selectOptions(screen.getByLabelText(/filter by country/i), 'India')
 
-    expect(screen.getByText(/min salary/i)).toBeInTheDocument()
-    expect(screen.getByText(/max salary/i)).toBeInTheDocument()
-    expect(screen.getByText(/avg salary/i)).toBeInTheDocument()
-    expect(screen.getByText(/headcount/i)).toBeInTheDocument()
+    // Use { selector: 'p' } to target only the CardDescription <p> elements,
+    // not the "Avg Salary" <th> column headers that also match the pattern.
+    expect(screen.getByText(/min salary/i, { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText(/max salary/i, { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText(/avg salary/i, { selector: 'p' })).toBeInTheDocument()
+    expect(screen.getByText(/headcount/i,  { selector: 'p' })).toBeInTheDocument()
   })
 
   it('shows the formatted min / max values in the stat cards', async () => {
