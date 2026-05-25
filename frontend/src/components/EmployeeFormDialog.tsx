@@ -18,8 +18,15 @@
  *  - Calls useCreateEmployee or useUpdateEmployee accordingly.
  *  - Closes automatically after a successful mutation.
  *  - Selecting a country auto-fills the currency field.
+ *
+ * Performance:
+ *  - Component wrapped in memo.
+ *  - setField and handleSubmit wrapped in useCallback.
+ *  - Per-field onChange handlers each wrapped in useCallback (stable since
+ *    they only depend on the stable setField reference).
+ *  - All data fetching goes through custom hooks — no axios calls here.
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -128,7 +135,10 @@ interface EmployeeFormDialogProps {
   children:  React.ReactNode
 }
 
-export default function EmployeeFormDialog({ employee, children }: EmployeeFormDialogProps) {
+const EmployeeFormDialog = memo(function EmployeeFormDialog({
+  employee,
+  children,
+}: EmployeeFormDialogProps) {
   const [open, setOpen]     = useState(false)
   const [form, setForm]     = useState<FormState>(DEFAULT_FORM)
   const [errors, setErrors] = useState<FormErrors>({})
@@ -146,7 +156,12 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
     }
   }, [open, employee])
 
-  function setField<K extends keyof FormState>(field: K, value: FormState[K]) {
+  // ── Stable field updater ──────────────────────────────────────────────────
+  /**
+   * All FormState values are strings, so we can accept `string` for `value`
+   * without the generic — this makes useCallback work cleanly.
+   */
+  const setField = useCallback((field: keyof FormState, value: string) => {
     setForm(prev => {
       const next = { ...prev, [field]: value }
       // Auto-sync currency when country changes
@@ -154,38 +169,79 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
       return next
     })
     setErrors(prev => ({ ...prev, [field]: undefined }))
-  }
+  }, [])
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const validationErrors = validate(form)
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors)
-      return
-    }
+  // ── Per-field onChange handlers (stable — depend only on stable setField) ──
+  const handleFullNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setField('fullName', e.target.value),
+    [setField],
+  )
+  const handleJobTitleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setField('jobTitle', e.target.value),
+    [setField],
+  )
+  const handleDepartmentChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => setField('department', e.target.value),
+    [setField],
+  )
+  const handleCountryChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => setField('country', e.target.value),
+    [setField],
+  )
+  const handleSalaryChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setField('salary', e.target.value),
+    [setField],
+  )
+  const handleCurrencyChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setField('currency', e.target.value),
+    [setField],
+  )
+  const handleEmpTypeChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => setField('employmentType', e.target.value),
+    [setField],
+  )
+  const handleJoinDateChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setField('joinDate', e.target.value),
+    [setField],
+  )
 
-    const payload: EmployeeFormData = {
-      fullName:       form.fullName.trim(),
-      jobTitle:       form.jobTitle.trim(),
-      department:     form.department,
-      country:        form.country,
-      salary:         Number(form.salary),
-      currency:       form.currency.trim().toUpperCase(),
-      employmentType: form.employmentType as EmployeeFormData['employmentType'],
-      joinDate:       form.joinDate,
-    }
+  // ── Submit handler ────────────────────────────────────────────────────────
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      const validationErrors = validate(form)
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors)
+        return
+      }
 
-    if (isEdit) {
-      update.mutate(
-        { id: employee.id, data: payload },
-        { onSuccess: () => setOpen(false) },
-      )
-    } else {
-      create.mutate(payload, { onSuccess: () => setOpen(false) })
-    }
-  }
+      const payload: EmployeeFormData = {
+        fullName:       form.fullName.trim(),
+        jobTitle:       form.jobTitle.trim(),
+        department:     form.department,
+        country:        form.country,
+        salary:         Number(form.salary),
+        currency:       form.currency.trim().toUpperCase(),
+        employmentType: form.employmentType as EmployeeFormData['employmentType'],
+        joinDate:       form.joinDate,
+      }
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+      if (isEdit) {
+        update.mutate(
+          { id: employee!.id, data: payload },
+          { onSuccess: () => setOpen(false) },
+        )
+      } else {
+        create.mutate(payload, { onSuccess: () => setOpen(false) })
+      }
+    },
+    [form, isEdit, employee, create, update],
+  )
+
+  // ── Cancel handler ────────────────────────────────────────────────────────
+  const handleCancel = useCallback(() => setOpen(false), [])
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -209,7 +265,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
               <Input
                 id="fullName"
                 value={form.fullName}
-                onChange={e => setField('fullName', e.target.value)}
+                onChange={handleFullNameChange}
                 placeholder="e.g. Jane Smith"
                 disabled={isPending}
               />
@@ -224,7 +280,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
               <Input
                 id="jobTitle"
                 value={form.jobTitle}
-                onChange={e => setField('jobTitle', e.target.value)}
+                onChange={handleJobTitleChange}
                 placeholder="e.g. Software Engineer"
                 disabled={isPending}
               />
@@ -240,7 +296,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
                 <select
                   id="department"
                   value={form.department}
-                  onChange={e => setField('department', e.target.value)}
+                  onChange={handleDepartmentChange}
                   className={SELECT_CLS}
                   disabled={isPending}
                 >
@@ -258,7 +314,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
                 <select
                   id="country"
                   value={form.country}
-                  onChange={e => setField('country', e.target.value)}
+                  onChange={handleCountryChange}
                   className={SELECT_CLS}
                   disabled={isPending}
                 >
@@ -281,7 +337,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
                   type="number"
                   min={1}
                   value={form.salary}
-                  onChange={e => setField('salary', e.target.value)}
+                  onChange={handleSalaryChange}
                   placeholder="e.g. 75000"
                   disabled={isPending}
                 />
@@ -295,7 +351,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
                 <Input
                   id="currency"
                   value={form.currency}
-                  onChange={e => setField('currency', e.target.value)}
+                  onChange={handleCurrencyChange}
                   placeholder="e.g. USD"
                   maxLength={3}
                   disabled={isPending}
@@ -313,7 +369,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
                 <select
                   id="employmentType"
                   value={form.employmentType}
-                  onChange={e => setField('employmentType', e.target.value)}
+                  onChange={handleEmpTypeChange}
                   className={SELECT_CLS}
                   disabled={isPending}
                 >
@@ -332,7 +388,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
                   id="joinDate"
                   type="date"
                   value={form.joinDate}
-                  onChange={e => setField('joinDate', e.target.value)}
+                  onChange={handleJoinDateChange}
                   disabled={isPending}
                 />
                 {errors.joinDate && (
@@ -347,7 +403,7 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={handleCancel}
               disabled={isPending}
             >
               Cancel
@@ -360,4 +416,6 @@ export default function EmployeeFormDialog({ employee, children }: EmployeeFormD
       </DialogContent>
     </Dialog>
   )
-}
+})
+
+export default EmployeeFormDialog

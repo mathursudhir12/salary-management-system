@@ -2,11 +2,12 @@
  * Sonner Toaster wrapper — integrates with the CSS variable theme defined in
  * index.css so toast colours match the shadcn design system.
  */
+import { memo } from 'react'
 import { Toaster as SonnerToaster } from 'sonner'
 
 type ToasterProps = React.ComponentProps<typeof SonnerToaster>
 
-export function Toaster({ ...props }: ToasterProps) {
+const Toaster = memo(function Toaster({ ...props }: ToasterProps) {
   return (
     <SonnerToaster
       className="toaster group"
@@ -29,4 +30,6 @@ export function Toaster({ ...props }: ToasterProps) {
       {...props}
     />
   )
-}
+})
+
+export { Toaster }

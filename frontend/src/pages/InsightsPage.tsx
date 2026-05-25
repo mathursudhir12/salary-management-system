@@ -17,9 +17,15 @@
  * Data source: GET /api/insights  (via useInsights react-query hook)
  * Salary values are raw numbers — aggregates across multiple currencies, so
  * we display plain comma-formatted numbers without a currency symbol.
+ *
+ * Performance:
+ *  - All sub-components wrapped in memo.
+ *  - Event handlers stabilised with useCallback.
+ *  - All 5 derived insight values memoised with useMemo.
+ *  - All data fetching goes through useInsights — no axios calls in this file.
  */
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo, memo } from 'react'
 import { useInsights } from '@/hooks/useInsights'
 import { Skeleton }    from '@/components/ui/skeleton'
 import {
@@ -37,7 +43,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Comma-separated integer — no currency symbol (values mix currencies) */
@@ -48,7 +53,13 @@ function fmt(n: number): string {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 /** One metric card used in the 4-up country stats row */
-function StatCard({ label, value }: { label: string; value: string }) {
+const StatCard = memo(function StatCard({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -57,10 +68,17 @@ function StatCard({ label, value }: { label: string; value: string }) {
       </CardHeader>
     </Card>
   )
-}
+})
 
-/** Reusable two-column table: label | formatted salary */
-function SalaryTable<T extends { avgSalary: number }>({
+/**
+ * Reusable two-column table: label | formatted salary.
+ * Generic so TypeScript can narrow the row type without unsafe casts.
+ *
+ * React.memo is applied via the two-step pattern required for generic
+ * components: define the inner function first, then wrap with memo and
+ * cast back to preserve the type parameter.
+ */
+function SalaryTableInner<T extends { avgSalary: number }>({
   rows,
   labelHeader,
   getLabel,
@@ -97,9 +115,11 @@ function SalaryTable<T extends { avgSalary: number }>({
     </Table>
   )
 }
+// Cast back to the generic signature so call sites retain full type-checking
+const SalaryTable = memo(SalaryTableInner) as typeof SalaryTableInner
 
 /** Skeleton placeholder shown while the API call is in flight */
-function LoadingSkeleton() {
+const LoadingSkeleton = memo(function LoadingSkeleton() {
   return (
     <div className="space-y-4" aria-label="Loading">
       <p className="text-sm text-muted-foreground">Loading…</p>
@@ -108,7 +128,7 @@ function LoadingSkeleton() {
       ))}
     </div>
   )
-}
+})
 
 // Shared select styling (matches shadcn Input)
 const SELECT_CLS = [
@@ -122,17 +142,42 @@ const SELECT_CLS = [
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function InsightsPage() {
+const InsightsPage = memo(function InsightsPage() {
   const [country, setCountry] = useState('')
 
+  // All data fetching via the custom hook — no axios calls here
   const { data, isLoading, isError } = useInsights(country || undefined)
 
-  const insights          = data?.data
-  const countries         = insights?.headcountByCountry.map(h => h.country) ?? []
-  const topPaidJobTitles  = insights?.topPaidJobTitles   ?? []
-  const salaryByDept      = insights?.salaryByDepartment ?? []
-  const countryInsights   = insights?.countryInsights
-  const avgSalaryByTitle  = insights?.avgSalaryByTitle   ?? []
+  // ── Derived data (memoised) ─────────────────────────────────────────────────
+  const insights = useMemo(() => data?.data, [data])
+
+  const countries = useMemo(
+    () => insights?.headcountByCountry.map(h => h.country) ?? [],
+    [insights],
+  )
+  const topPaidJobTitles = useMemo(
+    () => insights?.topPaidJobTitles   ?? [],
+    [insights],
+  )
+  const salaryByDept = useMemo(
+    () => insights?.salaryByDepartment ?? [],
+    [insights],
+  )
+  const countryInsights = useMemo(
+    () => insights?.countryInsights,
+    [insights],
+  )
+  const avgSalaryByTitle = useMemo(
+    () => insights?.avgSalaryByTitle ?? [],
+    [insights],
+  )
+
+  // ── Stable handlers ─────────────────────────────────────────────────────────
+  const handleCountryChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => setCountry(e.target.value),
+    [],
+  )
+  const handleClearCountry = useCallback(() => setCountry(''), [])
 
   return (
     <main className="container mx-auto px-4 py-8 space-y-8">
@@ -153,7 +198,7 @@ export default function InsightsPage() {
         <select
           id="country-filter"
           value={country}
-          onChange={e => setCountry(e.target.value)}
+          onChange={handleCountryChange}
           className={SELECT_CLS}
           disabled={isLoading}
         >
@@ -165,7 +210,7 @@ export default function InsightsPage() {
         {country && (
           <button
             type="button"
-            onClick={() => setCountry('')}
+            onClick={handleClearCountry}
             className="text-xs text-muted-foreground hover:text-foreground underline"
           >
             Clear
@@ -253,4 +298,6 @@ export default function InsightsPage() {
       )}
     </main>
   )
-}
+})
+
+export default InsightsPage

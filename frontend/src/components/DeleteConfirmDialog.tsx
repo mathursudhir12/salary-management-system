@@ -12,8 +12,13 @@
  *  - Dialog is uncontrolled (manages its own open state).
  *  - Shows the employee's name so the HR manager can confirm the right person.
  *  - Calls useDeleteEmployee on confirm; closes automatically on success.
+ *
+ * Performance:
+ *  - Component wrapped in memo.
+ *  - handleConfirm and handleCancel wrapped in useCallback.
+ *  - All data fetching goes through useDeleteEmployee — no axios calls here.
  */
-import { useState } from 'react'
+import { useState, useCallback, memo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -32,13 +37,18 @@ interface DeleteConfirmDialogProps {
   children: React.ReactNode
 }
 
-export default function DeleteConfirmDialog({ employee, children }: DeleteConfirmDialogProps) {
-  const [open, setOpen]    = useState(false)
-  const { mutate, isPending } = useDeleteEmployee()
+const DeleteConfirmDialog = memo(function DeleteConfirmDialog({
+  employee,
+  children,
+}: DeleteConfirmDialogProps) {
+  const [open, setOpen]           = useState(false)
+  const { mutate, isPending }     = useDeleteEmployee()
 
-  function handleConfirm() {
+  const handleConfirm = useCallback(() => {
     mutate(employee.id, { onSuccess: () => setOpen(false) })
-  }
+  }, [mutate, employee.id])
+
+  const handleCancel = useCallback(() => setOpen(false), [])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -58,7 +68,7 @@ export default function DeleteConfirmDialog({ employee, children }: DeleteConfir
           <Button
             type="button"
             variant="outline"
-            onClick={() => setOpen(false)}
+            onClick={handleCancel}
             disabled={isPending}
           >
             Cancel
@@ -75,4 +85,6 @@ export default function DeleteConfirmDialog({ employee, children }: DeleteConfir
       </DialogContent>
     </Dialog>
   )
-}
+})
+
+export default DeleteConfirmDialog

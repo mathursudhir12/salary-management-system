@@ -9,9 +9,15 @@
  *  - Add Employee button → EmployeeFormDialog (create mode)
  *  - Edit icon per row  → EmployeeFormDialog (edit mode, pre-filled)
  *  - Delete icon per row → DeleteConfirmDialog (confirmation before delete)
+ *
+ * Performance:
+ *  - All sub-components wrapped in memo to prevent unnecessary re-renders.
+ *  - Event handlers stabilised with useCallback.
+ *  - Derived data memoised with useMemo.
+ *  - All data fetching goes through custom hooks — no axios calls in this file.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { useEmployees }          from '@/hooks/useEmployees'
 import { useDebounce }           from '@/hooks/useDebounce'
 import { Button }                from '@/components/ui/button'
@@ -78,7 +84,7 @@ function buildPageRange(current: number, total: number): (number | '…')[] {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 /** Single table row rendered from live data */
-function EmployeeRow({ emp }: { emp: Employee }) {
+const EmployeeRow = memo(function EmployeeRow({ emp }: { emp: Employee }) {
   const meta = EMPLOYMENT_TYPE_META[emp.employmentType] ?? {
     label:     emp.employmentType,
     className: '',
@@ -163,10 +169,10 @@ function EmployeeRow({ emp }: { emp: Employee }) {
       </TableCell>
     </TableRow>
   )
-}
+})
 
 /** Skeleton placeholder row shown while data loads */
-function SkeletonRow() {
+const SkeletonRow = memo(function SkeletonRow() {
   return (
     <TableRow>
       {Array.from({ length: 7 }).map((_, i) => (
@@ -176,10 +182,10 @@ function SkeletonRow() {
       ))}
     </TableRow>
   )
-}
+})
 
 /** Pagination bar with Previous / numbered pages / Next */
-function Pagination({
+const Pagination = memo(function Pagination({
   page,
   totalPages,
   onPageChange,
@@ -192,7 +198,20 @@ function Pagination({
 }) {
   if (totalPages <= 1) return null
 
-  const pageRange = buildPageRange(page, totalPages)
+  // Memoised so buildPageRange only re-runs when page or totalPages changes
+  const pageRange = useMemo(
+    () => buildPageRange(page, totalPages),
+    [page, totalPages],
+  )
+
+  const handlePrev = useCallback(
+    () => onPageChange(page - 1),
+    [onPageChange, page],
+  )
+  const handleNext = useCallback(
+    () => onPageChange(page + 1),
+    [onPageChange, page],
+  )
 
   return (
     <div className="flex items-center justify-between gap-2 pt-4">
@@ -204,7 +223,7 @@ function Pagination({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onPageChange(page - 1)}
+          onClick={handlePrev}
           disabled={disabled || page === 1}
           aria-label="Previous page"
         >
@@ -232,7 +251,7 @@ function Pagination({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onPageChange(page + 1)}
+          onClick={handleNext}
           disabled={disabled || page === totalPages}
           aria-label="Next page"
         >
@@ -241,27 +260,37 @@ function Pagination({
       </div>
     </div>
   )
-}
+})
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function EmployeesPage() {
+const EmployeesPage = memo(function EmployeesPage() {
   const [page, setPage]               = useState(1)
   const [searchInput, setSearchInput] = useState('')
 
   const debouncedSearch = useDebounce(searchInput, 300)
 
+  // Reset to page 1 whenever the search term changes
   useEffect(() => { setPage(1) }, [debouncedSearch])
 
+  // All data fetching via the custom hook — no axios calls here
   const { data, isLoading, isError, isFetching } = useEmployees({
     page,
     limit:  PAGE_LIMIT,
     search: debouncedSearch,
   })
 
-  const employees  = data?.data       ?? []
-  const total      = data?.total      ?? 0
-  const totalPages = data?.totalPages ?? 0
+  // ── Derived data (memoised) ─────────────────────────────────────────────────
+  const employees  = useMemo(() => data?.data       ?? [], [data])
+  const total      = useMemo(() => data?.total      ?? 0,  [data])
+  const totalPages = useMemo(() => data?.totalPages ?? 0,  [data])
+
+  // ── Stable handlers ─────────────────────────────────────────────────────────
+  /** setPage from useState is already stable; no useCallback needed for it. */
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value),
+    [],
+  )
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -322,7 +351,7 @@ export default function EmployeesPage() {
             type="search"
             placeholder="Search by name or country…"
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-9"
           />
         </div>
@@ -387,4 +416,6 @@ export default function EmployeesPage() {
       )}
     </main>
   )
-}
+})
+
+export default EmployeesPage
